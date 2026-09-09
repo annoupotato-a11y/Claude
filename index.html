@@ -9,6 +9,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f7f4ee">
 <title>言語化ノート</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kurenaido&display=swap">
 <link rel="stylesheet" href="assets/style.css">
 <link rel="manifest" href="manifest.webmanifest" data-pwa>
 <link rel="apple-touch-icon" href="assets/icon-180.png" data-pwa>
@@ -45,7 +48,7 @@
       <!-- 左ページ：問い＋理由 -->
       <div class="page page--left">
         <div class="boxed boxed--question">
-          <textarea id="fWhat" class="question" rows="1" placeholder="プレゼン終了。テンション上がった。"></textarea>
+          <textarea id="fWhat" class="question ruled" rows="1" placeholder="プレゼン終了。テンション上がった。"></textarea>
           <span class="question__suffix">のはなぜか？</span>
         </div>
 
@@ -54,7 +57,7 @@
             <span>理由<span class="en">（WHY）</span></span>
             <button type="button" class="mark-btn" data-mark="whyLines" title="選択した言葉にマーカー（Ctrl / ⌘ + M）">マーカー</button>
           </div>
-          <ul class="lines" id="whyLines"></ul>
+          <ul class="lines ruled" id="whyLines"></ul>
           <button type="button" class="add-line" data-add="whyLines">＋ 理由を追加</button>
         </div>
       </div>
@@ -63,12 +66,12 @@
       <div class="page page--right">
         <div class="boxed">
           <span class="chip">結論</span>
-          <textarea id="fConclusion" class="conclusion" rows="2" placeholder="◯◯なのは、△△だから"></textarea>
+          <textarea id="fConclusion" class="conclusion ruled" rows="2" placeholder="◯◯なのは、△△だから"></textarea>
         </div>
 
         <div class="boxed list-block" data-list="action">
           <span class="chip chip--filled"><input type="text" id="actionLabel" class="chip__input" value="行動" maxlength="8" aria-label="欄の見出し（自由にアレンジ）"></span>
-          <ul class="lines" id="actionLines"></ul>
+          <ul class="lines ruled" id="actionLines"></ul>
           <div class="list-block__foot">
             <button type="button" class="add-line" data-add="actionLines">＋ 行動を追加</button>
             <button type="button" class="mark-btn" data-mark="actionLines" title="選択した言葉にマーカー（Ctrl / ⌘ + M）">マーカー</button>

@@ -1,47 +1,59 @@
 /* ===== 言語化ノート : 手書きの見開きノートを思わせるUI ===== */
 :root {
-  --paper:      #fbf9f4;
-  --paper-edge: #f1ece1;
+  --paper:      #fdfbf5;   /* ノートの紙 */
+  --paper-edge: #cdc3ae;   /* ノートを置いている机 */
   --ink:        #23201b;
   --ink-soft:   #6d665a;
-  --line:       #ddd5c6;
+  --line:       #ded6c5;
+  --rule:       #cfd8dd;   /* 罫線 */
   --accent:     #2f6f5e;
   --accent-ink: #ffffff;
   --band:       #e6e1d6;
-  --marker:     #cfe3c8;
+  --marker:     #ffdf5e;   /* 蛍光ペン */
+  --marker-ink: #23201b;
   --danger:     #a4402f;
   --radius:     10px;
-  --shadow:     0 1px 2px rgba(35,32,27,.06), 0 10px 30px rgba(35,32,27,.08);
+  --rule-step:  30px;      /* 罫線の間隔（行の高さと揃える） */
+  --shadow:     0 1px 2px rgba(35,32,27,.10), 0 14px 34px rgba(35,32,27,.18);
 }
 /* 端末の設定が暗いとき（明るいテーマを選んでいる人は除く） */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper:      #1c1b19;
-    --paper-edge: #131211;
+    --paper:      #1f1e1b;
+    --paper-edge: #0e0d0c;
     --ink:        #ece7dd;
     --ink-soft:   #9c948a;
     --line:       #3a372f;
+    --rule:       #33383c;
     --accent:     #6fb59d;
     --accent-ink: #10201b;
     --band:       #2f2c26;
-    --marker:     #37564b;
+    --marker:     #c9a23f;
+    --marker-ink: #1a1814;
     --danger:     #e0836f;
-    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    --shadow:     0 1px 2px rgba(0,0,0,.5), 0 14px 34px rgba(0,0,0,.45);
   }
 }
 /* 明るい／暗いを自分で選んでいるとき */
 :root[data-theme="dark"] {
-  --paper:    #1c1b19;
-  --paper-edge: #131211;
+  --paper:    #1f1e1b;
+  --paper-edge: #0e0d0c;
   --ink:    #ece7dd;
   --ink-soft:   #9c948a;
   --line:     #3a372f;
+  --rule:     #33383c;
   --accent:   #6fb59d;
   --accent-ink: #10201b;
   --band:     #2f2c26;
-  --marker:   #37564b;
+  --marker:   #c9a23f;
+  --marker-ink: #1a1814;
   --danger:   #e0836f;
-  --shadow:   0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  --shadow:   0 1px 2px rgba(0,0,0,.5), 0 14px 34px rgba(0,0,0,.45);
+}
+
+/* ノートに書く文字は手書き風、画面の操作まわりは読みやすいゴシック */
+:root {
+  --font-hand: "Zen Kurenaido", "Hiragino Maru Gothic ProN", "Yu Gothic Medium", "Noto Sans JP", sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -50,8 +62,7 @@ body {
   margin: 0;
   background: var(--paper-edge);
   color: var(--ink);
-  font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP",
-               "Yu Gothic Medium", "Yu Gothic", Meiryo, system-ui, sans-serif;
+  font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic Medium", "Yu Gothic", Meiryo, system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.7;
 }
@@ -103,8 +114,8 @@ input[type="date"], .search {
 
 /* ---- 見開きの上のタイトル ---- */
 .spread-title {
-  display: block; width: 100%; margin: 0 auto 12px; padding: 4px;
-  font: inherit; font-size: 1.05rem; font-weight: 700; text-align: center;
+  display: block; width: 100%; margin: 0 auto 14px; padding: 4px;
+  font: inherit; font-family: var(--font-hand); font-size: 1.1rem; font-weight: 700; text-align: center;
   color: var(--ink); background: transparent; border: 0; border-bottom: 1px dashed transparent;
 }
 .spread-title:focus { outline: none; border-bottom-color: var(--line); }
@@ -112,20 +123,44 @@ input[type="date"], .search {
 
 /* ---- 見開きノート ---- */
 .spread {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-  background: var(--paper); border: 3px solid var(--ink);
-  border-radius: 18px 18px 8px 8px; padding: 10px; box-shadow: var(--shadow);
+  position: relative;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+  background: var(--paper);
+  border: 1px solid var(--line); border-radius: 4px;
+  font-family: var(--font-hand);
+  /* 下に紙が重なっているように見せる */
+  box-shadow: var(--shadow),
+              4px 4px 0 -1px var(--paper), 4px 4px 0 0 var(--line),
+              8px 8px 0 -1px var(--paper), 8px 8px 0 0 var(--line);
+}
+/* 綴じ目の影と綴じ糸 */
+.spread::before, .spread::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%;
+  pointer-events: none;
+}
+.spread::before {
+  width: 56px; transform: translateX(-50%);
+  background: linear-gradient(90deg,
+    rgba(35,32,27,0) 0%, rgba(35,32,27,.05) 35%, rgba(35,32,27,.13) 50%,
+    rgba(35,32,27,.05) 65%, rgba(35,32,27,0) 100%);
+}
+.spread::after {
+  width: 1px; margin-left: -.5px;
+  background: repeating-linear-gradient(180deg,
+    color-mix(in srgb, var(--ink) 28%, transparent) 0 9px, transparent 9px 30px);
 }
 .page {
-  border: 1px solid var(--ink); border-radius: 10px; padding: 14px;
-  display: grid; gap: 14px; align-content: start; min-width: 0;
+  padding: 22px 20px; display: grid; gap: 16px; align-content: start; min-width: 0;
 }
+.page--left  { padding-right: 34px; }
+.page--right { padding-left: 34px; }
 
 /* 枠つきブロック（問い・結論・行動） */
-.boxed { border: 1.5px solid var(--ink); border-radius: 6px; padding: 10px 12px; }
+.boxed { border: 1.5px solid var(--ink); border-radius: 3px; padding: 8px 12px 10px; }
 .boxed--question { display: grid; gap: 2px; }
 .chip {
-  display: inline-block; border: 1.5px solid var(--ink); border-radius: 4px;
+  display: inline-block; font-family: var(--font-hand);
+  border: 1.5px solid var(--ink); border-radius: 3px;
   background: var(--band); padding: 1px 10px; font-size: .84rem; font-weight: 700;
   letter-spacing: .08em; margin-bottom: 6px;
 }
@@ -140,30 +175,40 @@ input[type="date"], .search {
 /* 見出し（理由） */
 .block__label {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  font-weight: 700; font-size: .9rem; letter-spacing: .06em;
+  font-family: var(--font-hand); font-size: .95rem; letter-spacing: .06em;
 }
 .block__label .en { font-size: .72rem; font-weight: 400; color: var(--ink-soft); letter-spacing: .02em; }
 
 /* ---- 入力欄 ---- */
 textarea {
-  font: inherit; color: var(--ink); background: transparent;
-  border: 0; padding: 2px; resize: none; width: 100%; line-height: 1.85; overflow: hidden;
+  font: inherit; font-family: var(--font-hand); color: var(--ink); background: transparent;
+  border: 0; padding: 2px; resize: none; width: 100%; line-height: var(--rule-step); overflow: hidden;
 }
+/* 書く場所にはノートの罫線を敷く */
+.ruled {
+  background-image: repeating-linear-gradient(180deg,
+    transparent 0 calc(var(--rule-step) - 1px), var(--rule) calc(var(--rule-step) - 1px) var(--rule-step));
+}
+textarea.ruled { background-position: 0 2px; }
+.lines.ruled { background-position: 0 0; }
 textarea:focus { outline: none; }
 textarea::placeholder, .line__text:empty::before { color: color-mix(in srgb, var(--ink-soft) 60%, transparent); }
-.question { font-weight: 700; min-height: 2.2em; }
-.question__suffix { display: block; text-align: right; font-weight: 700; font-size: .9rem; }
-.conclusion { font-weight: 700; min-height: 3.4em; }
+.question { font-size: 1.06rem; min-height: calc(var(--rule-step) * 2); }
+.question__suffix { display: block; text-align: right; font-size: .95rem; line-height: var(--rule-step); }
+.conclusion { font-size: 1.06rem; min-height: calc(var(--rule-step) * 2); }
 
 /* ---- 箇条書き（理由・行動） ---- */
-.lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+#whyLines { min-height: calc(var(--rule-step) * 7); }
+#actionLines { min-height: calc(var(--rule-step) * 4); }
+.lines { font-family: var(--font-hand); }
 .line { display: grid; grid-template-columns: 1em 1fr auto; align-items: start; gap: 2px; }
-.line__bullet { color: var(--ink); line-height: 1.85; user-select: none; }
+.line__bullet { color: var(--ink); line-height: var(--rule-step); user-select: none; }
 .line__text {
-  line-height: 1.85; padding: 1px 2px; min-height: 1.85em; word-break: break-word;
-  border-bottom: 1px dashed transparent; outline: none;
+  line-height: var(--rule-step); padding: 0 2px; min-height: var(--rule-step);
+  word-break: break-word; outline: none;
 }
-.line__text:focus { border-bottom-color: var(--line); }
+.line__text:focus { background-color: color-mix(in srgb, var(--accent) 6%, transparent); }
 .line__text:empty::before { content: attr(data-placeholder); }
 .line__del {
   appearance: none; border: 0; background: none; cursor: pointer; font: inherit;
@@ -173,8 +218,11 @@ textarea::placeholder, .line__text:empty::before { color: color-mix(in srgb, var
 .line__del:hover { opacity: 1; color: var(--danger); }
 
 mark {
-  background: linear-gradient(transparent 58%, var(--marker) 58%);
-  color: inherit; border-radius: 2px; padding: 0 1px;
+  color: var(--marker-ink);
+  background: transparent;
+  /* 下から文字の高さぶんを塗る＝蛍光ペンを引いた見た目 */
+  box-shadow: inset 0 -0.95em 0 0 var(--marker), inset 0 -1.05em 0 0 color-mix(in srgb, var(--marker) 55%, transparent);
+  padding: 0 .18em; border-radius: .15em;
 }
 
 .list-block { display: grid; gap: 6px; align-content: start; }
@@ -251,9 +299,14 @@ mark {
 @media (max-width: 700px) {
   main { padding: 16px 12px 108px; }
   .spread { grid-template-columns: 1fr; }
+  .spread::before, .spread::after { display: none; }
   .app-title__sub { display: none; }
   .app-title { font-size: 1rem; }
-  .page { padding: 12px; }
+  .page { padding: 16px 14px; }
+  .page--left  { padding-right: 14px; padding-bottom: 4px; }
+  .page--right { padding-left: 14px; padding-top: 4px; }
+  /* 上下に並ぶ2ページの境目 */
+  .page--right { border-top: 1px dashed var(--line); }
   .toolbar { gap: 8px; }
 
   /* 指で押せる大きさに */
