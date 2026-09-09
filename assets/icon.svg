@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="言語化ノート">
+  <rect width="100" height="100" rx="22" fill="#23201b"/>
+  <rect x="18" y="16" width="64" height="68" rx="5" fill="#fbf9f4"/>
+  <rect x="18" y="16" width="5" height="68" rx="2" fill="#2f6f5e"/>
+  <rect x="30" y="30" width="40" height="3" rx="1.5" fill="#c9c0af"/>
+  <rect x="30" y="44" width="30" height="6" rx="2" fill="#8dc3a9"/>
+  <rect x="30" y="58" width="40" height="3" rx="1.5" fill="#c9c0af"/>
+  <rect x="30" y="70" width="24" height="3" rx="1.5" fill="#c9c0af"/>
+</svg>

@@ -13,8 +13,9 @@
   --radius:     10px;
   --shadow:     0 1px 2px rgba(35,32,27,.06), 0 10px 30px rgba(35,32,27,.08);
 }
+/* 端末の設定が暗いとき（明るいテーマを選んでいる人は除く） */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --paper:      #1c1b19;
     --paper-edge: #131211;
     --ink:        #ece7dd;
@@ -27,6 +28,20 @@
     --danger:     #e0836f;
     --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
   }
+}
+/* 明るい／暗いを自分で選んでいるとき */
+:root[data-theme="dark"] {
+  --paper:    #1c1b19;
+  --paper-edge: #131211;
+  --ink:    #ece7dd;
+  --ink-soft:   #9c948a;
+  --line:     #3a372f;
+  --accent:   #6fb59d;
+  --accent-ink: #10201b;
+  --band:     #2f2c26;
+  --marker:   #37564b;
+  --danger:   #e0836f;
+  --shadow:   0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
 }
 
 * { box-sizing: border-box; }
@@ -84,6 +99,7 @@ input[type="date"], .search {
 }
 .search { flex: 1 1 240px; min-width: 0; }
 .streak { font-size: .8rem; color: var(--ink-soft); }
+.sync { font-size: .74rem; color: var(--accent); white-space: nowrap; }
 
 /* ---- 見開きの上のタイトル ---- */
 .spread-title {
@@ -175,6 +191,18 @@ mark {
 }
 .mark-btn:hover { color: var(--ink); border-color: var(--accent); }
 
+/* ---- 選択中に浮かぶマーカーボタン ---- */
+.mark-float {
+  position: fixed; left: 50%; bottom: 26px; z-index: 30;
+  transform: translate(-50%, 10px); opacity: 0; pointer-events: none;
+  font: inherit; font-size: .9rem; font-weight: 700; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); border: 0;
+  border-radius: 99px; padding: 12px 24px;
+  box-shadow: 0 6px 20px rgba(35,32,27,.28);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.mark-float.is-shown { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+
 /* ---- actions ---- */
 .actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
 .btn {
@@ -219,11 +247,34 @@ mark {
 }
 .toast.is-shown { opacity: 1; transform: translate(-50%, 0); }
 
-/* ---- 狭い画面：見開きを上下に ---- */
+/* ---- 狭い画面（スマホ）：見開きを上下に、操作は下端に固定 ---- */
 @media (max-width: 700px) {
+  main { padding: 16px 12px 108px; }
   .spread { grid-template-columns: 1fr; }
   .app-title__sub { display: none; }
+  .app-title { font-size: 1rem; }
   .page { padding: 12px; }
+  .toolbar { gap: 8px; }
+
+  /* 指で押せる大きさに */
+  .btn { padding: 12px 16px; }
+  .btn--small { padding: 9px 14px; }
+  .add-line { padding: 8px 0; font-size: .86rem; }
+  .line__del { opacity: .45; padding: 4px 6px; min-width: 32px; }
+  .mark-btn { padding: 6px 14px; }
+
+  /* 保存バーを画面下に固定する */
+  .actions {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; margin: 0;
+    gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--paper); border-top: 1px solid var(--line);
+    box-shadow: 0 -4px 18px rgba(35,32,27,.10);
+  }
+  .actions .hint { display: none; }
+  .actions .btn--primary { flex: 1; }
+  .mark-float { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+
+  #view-list { padding-bottom: 8px; }
 }
 
 /* ---- 印刷 ---- */

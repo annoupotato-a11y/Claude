@@ -1,3 +1,399 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="言語化ノート">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f7f4ee">
+<title>言語化ノート</title>
+<style>
+/* ===== 言語化ノート : 手書きの見開きノートを思わせるUI ===== */
+:root {
+  --paper:      #fbf9f4;
+  --paper-edge: #f1ece1;
+  --ink:        #23201b;
+  --ink-soft:   #6d665a;
+  --line:       #ddd5c6;
+  --accent:     #2f6f5e;
+  --accent-ink: #ffffff;
+  --band:       #e6e1d6;
+  --marker:     #cfe3c8;
+  --danger:     #a4402f;
+  --radius:     10px;
+  --shadow:     0 1px 2px rgba(35,32,27,.06), 0 10px 30px rgba(35,32,27,.08);
+}
+/* 端末の設定が暗いとき（明るいテーマを選んでいる人は除く） */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #1c1b19;
+    --paper-edge: #131211;
+    --ink:        #ece7dd;
+    --ink-soft:   #9c948a;
+    --line:       #3a372f;
+    --accent:     #6fb59d;
+    --accent-ink: #10201b;
+    --band:       #2f2c26;
+    --marker:     #37564b;
+    --danger:     #e0836f;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+}
+/* 明るい／暗いを自分で選んでいるとき */
+:root[data-theme="dark"] {
+  --paper:    #1c1b19;
+  --paper-edge: #131211;
+  --ink:    #ece7dd;
+  --ink-soft:   #9c948a;
+  --line:     #3a372f;
+  --accent:   #6fb59d;
+  --accent-ink: #10201b;
+  --band:     #2f2c26;
+  --marker:   #37564b;
+  --danger:   #e0836f;
+  --shadow:   0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper-edge);
+  color: var(--ink);
+  font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP",
+               "Yu Gothic Medium", "Yu Gothic", Meiryo, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+}
+main { max-width: 940px; margin: 0 auto; padding: 20px 16px 96px; }
+
+/* ---- header ---- */
+.app-header {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.app-header__inner {
+  max-width: 940px; margin: 0 auto; padding: 12px 16px 0;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px;
+}
+.app-title { font-size: 1.15rem; margin: 0; letter-spacing: .04em; }
+.app-title__sub {
+  display: block; font-size: .72rem; font-weight: 400;
+  color: var(--ink-soft); letter-spacing: .08em; margin-top: 2px;
+}
+.tabs { margin-left: auto; display: flex; gap: 4px; align-self: flex-end; }
+.tab {
+  appearance: none; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: .9rem; color: var(--ink-soft);
+  padding: 10px 12px; border-bottom: 2px solid transparent;
+}
+.tab.is-active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 700; }
+.tab__count {
+  display: inline-block; margin-left: 6px; padding: 0 7px;
+  border-radius: 99px; background: var(--band); font-size: .72rem; line-height: 1.6;
+}
+
+/* ---- views / toolbar ---- */
+.view { display: none; animation: fade .18s ease; }
+.view.is-active { display: block; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+
+.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.toolbar__spacer { flex: 1; }
+.field-date { display: inline-flex; align-items: center; gap: 8px; font-size: .84rem; color: var(--ink-soft); }
+input[type="date"], .search {
+  font: inherit; color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px;
+}
+.search { flex: 1 1 240px; min-width: 0; }
+.streak { font-size: .8rem; color: var(--ink-soft); }
+.sync { font-size: .74rem; color: var(--accent); white-space: nowrap; }
+
+/* ---- 見開きの上のタイトル ---- */
+.spread-title {
+  display: block; width: 100%; margin: 0 auto 12px; padding: 4px;
+  font: inherit; font-size: 1.05rem; font-weight: 700; text-align: center;
+  color: var(--ink); background: transparent; border: 0; border-bottom: 1px dashed transparent;
+}
+.spread-title:focus { outline: none; border-bottom-color: var(--line); }
+.spread-title::placeholder { color: color-mix(in srgb, var(--ink-soft) 60%, transparent); font-weight: 400; }
+
+/* ---- 見開きノート ---- */
+.spread {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  background: var(--paper); border: 3px solid var(--ink);
+  border-radius: 18px 18px 8px 8px; padding: 10px; box-shadow: var(--shadow);
+}
+.page {
+  border: 1px solid var(--ink); border-radius: 10px; padding: 14px;
+  display: grid; gap: 14px; align-content: start; min-width: 0;
+}
+
+/* 枠つきブロック（問い・結論・行動） */
+.boxed { border: 1.5px solid var(--ink); border-radius: 6px; padding: 10px 12px; }
+.boxed--question { display: grid; gap: 2px; }
+.chip {
+  display: inline-block; border: 1.5px solid var(--ink); border-radius: 4px;
+  background: var(--band); padding: 1px 10px; font-size: .84rem; font-weight: 700;
+  letter-spacing: .08em; margin-bottom: 6px;
+}
+.chip--filled { padding: 1px 6px; }
+.list-block > .chip { justify-self: start; }
+.chip__input {
+  font: inherit; font-weight: 700; letter-spacing: .08em; color: var(--ink);
+  background: transparent; border: 0; padding: 0 2px; width: 4.6em; text-align: center;
+}
+.chip__input:focus { outline: 1px dashed var(--accent); outline-offset: 2px; }
+
+/* 見出し（理由） */
+.block__label {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-weight: 700; font-size: .9rem; letter-spacing: .06em;
+}
+.block__label .en { font-size: .72rem; font-weight: 400; color: var(--ink-soft); letter-spacing: .02em; }
+
+/* ---- 入力欄 ---- */
+textarea {
+  font: inherit; color: var(--ink); background: transparent;
+  border: 0; padding: 2px; resize: none; width: 100%; line-height: 1.85; overflow: hidden;
+}
+textarea:focus { outline: none; }
+textarea::placeholder, .line__text:empty::before { color: color-mix(in srgb, var(--ink-soft) 60%, transparent); }
+.question { font-weight: 700; min-height: 2.2em; }
+.question__suffix { display: block; text-align: right; font-weight: 700; font-size: .9rem; }
+.conclusion { font-weight: 700; min-height: 3.4em; }
+
+/* ---- 箇条書き（理由・行動） ---- */
+.lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.line { display: grid; grid-template-columns: 1em 1fr auto; align-items: start; gap: 2px; }
+.line__bullet { color: var(--ink); line-height: 1.85; user-select: none; }
+.line__text {
+  line-height: 1.85; padding: 1px 2px; min-height: 1.85em; word-break: break-word;
+  border-bottom: 1px dashed transparent; outline: none;
+}
+.line__text:focus { border-bottom-color: var(--line); }
+.line__text:empty::before { content: attr(data-placeholder); }
+.line__del {
+  appearance: none; border: 0; background: none; cursor: pointer; font: inherit;
+  color: var(--ink-soft); opacity: 0; padding: 0 4px; line-height: 1.85;
+}
+.line:hover .line__del, .line:focus-within .line__del { opacity: .7; }
+.line__del:hover { opacity: 1; color: var(--danger); }
+
+mark {
+  background: linear-gradient(transparent 58%, var(--marker) 58%);
+  color: inherit; border-radius: 2px; padding: 0 1px;
+}
+
+.list-block { display: grid; gap: 6px; align-content: start; }
+.list-block__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.add-line {
+  appearance: none; border: 0; background: none; cursor: pointer; font: inherit;
+  font-size: .8rem; color: var(--ink-soft); padding: 2px 0; justify-self: start;
+}
+.add-line:hover { color: var(--accent); }
+.mark-btn {
+  appearance: none; cursor: pointer; font: inherit; font-size: .74rem;
+  color: var(--ink-soft); background: var(--band); border: 1px solid var(--line);
+  border-radius: 99px; padding: 1px 10px; white-space: nowrap;
+}
+.mark-btn:hover { color: var(--ink); border-color: var(--accent); }
+
+/* ---- 選択中に浮かぶマーカーボタン ---- */
+.mark-float {
+  position: fixed; left: 50%; bottom: 26px; z-index: 30;
+  transform: translate(-50%, 10px); opacity: 0; pointer-events: none;
+  font: inherit; font-size: .9rem; font-weight: 700; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); border: 0;
+  border-radius: 99px; padding: 12px 24px;
+  box-shadow: 0 6px 20px rgba(35,32,27,.28);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.mark-float.is-shown { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+
+/* ---- actions ---- */
+.actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+.btn {
+  font: inherit; font-size: .9rem; cursor: pointer;
+  background: var(--paper); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 9px 18px; transition: transform .06s ease, background .15s ease;
+}
+.btn:hover { background: var(--band); }
+.btn:active { transform: translateY(1px); }
+.btn--primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+.btn--primary:hover { background: color-mix(in srgb, var(--accent) 85%, #000); }
+.btn--ghost { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.btn--small { padding: 6px 12px; font-size: .8rem; }
+.menu { display: flex; gap: 6px; flex-wrap: wrap; }
+.hint { font-size: .74rem; color: var(--ink-soft); }
+
+/* ---- 一覧 ---- */
+.entry-list { display: grid; gap: 12px; }
+.entry {
+  background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.entry:hover { border-color: var(--accent); }
+.entry__date { font-size: .76rem; color: var(--ink-soft); letter-spacing: .08em; }
+.entry__title { font-size: .78rem; color: var(--accent); margin-left: 8px; }
+.entry__what { font-weight: 700; margin: 4px 0 0; }
+.entry__conclusion {
+  margin: 8px 0 0; padding-left: 10px; border-left: 3px solid var(--band);
+  font-size: .9rem; color: var(--ink-soft); white-space: pre-wrap;
+}
+.entry__meta { margin: 8px 0 0; font-size: .74rem; color: var(--ink-soft); }
+.empty { text-align: center; color: var(--ink-soft); padding: 48px 12px; font-size: .9rem; }
+
+/* ---- toast ---- */
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 16px);
+  background: var(--ink); color: var(--paper); padding: 10px 20px;
+  border-radius: 99px; font-size: .85rem; opacity: 0; pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease; z-index: 20;
+}
+.toast.is-shown { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---- 狭い画面（スマホ）：見開きを上下に、操作は下端に固定 ---- */
+@media (max-width: 700px) {
+  main { padding: 16px 12px 108px; }
+  .spread { grid-template-columns: 1fr; }
+  .app-title__sub { display: none; }
+  .app-title { font-size: 1rem; }
+  .page { padding: 12px; }
+  .toolbar { gap: 8px; }
+
+  /* 指で押せる大きさに */
+  .btn { padding: 12px 16px; }
+  .btn--small { padding: 9px 14px; }
+  .add-line { padding: 8px 0; font-size: .86rem; }
+  .line__del { opacity: .45; padding: 4px 6px; min-width: 32px; }
+  .mark-btn { padding: 6px 14px; }
+
+  /* 保存バーを画面下に固定する */
+  .actions {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; margin: 0;
+    gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--paper); border-top: 1px solid var(--line);
+    box-shadow: 0 -4px 18px rgba(35,32,27,.10);
+  }
+  .actions .hint { display: none; }
+  .actions .btn--primary { flex: 1; }
+  .mark-float { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+
+  #view-list { padding-bottom: 8px; }
+}
+
+/* ---- 印刷 ---- */
+@media print {
+  body { background: #fff; }
+  .app-header, .no-print, #view-list { display: none !important; }
+  main { padding: 0; max-width: none; }
+  .spread { grid-template-columns: 1fr 1fr; box-shadow: none; break-inside: avoid; }
+  .add-line, .mark-btn, .line__del { display: none !important; }
+  mark { background: linear-gradient(transparent 58%, #d8d8d8 58%); }
+}
+</style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📓</text></svg>">
+</head>
+<body>
+<header class="app-header">
+  <div class="app-header__inner">
+    <h1 class="app-title">言語化ノート<span class="app-title__sub">毎日の思考を言葉にする</span></h1>
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" role="tab" data-view="write" aria-selected="true">書く</button>
+      <button class="tab" role="tab" data-view="list" aria-selected="false">ノート一覧<span class="tab__count" id="tabCount">0</span></button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- ============ 書く ============ -->
+  <section id="view-write" class="view is-active">
+    <div class="toolbar no-print">
+      <label class="field-date">
+        <span>日付</span>
+        <input type="date" id="entryDate">
+      </label>
+      <div class="toolbar__spacer"></div>
+      <span class="streak" id="streak"></span>
+      <span class="sync" id="sync" hidden></span>
+    </div>
+
+    <input type="text" id="entryTitle" class="spread-title" placeholder="今回の事例のタイトル（任意）">
+
+    <!-- 見開きノート -->
+    <div class="spread">
+      <!-- 左ページ：問い＋理由 -->
+      <div class="page page--left">
+        <div class="boxed boxed--question">
+          <textarea id="fWhat" class="question" rows="1" placeholder="プレゼン終了。テンション上がった。"></textarea>
+          <span class="question__suffix">のはなぜか？</span>
+        </div>
+
+        <div class="list-block" data-list="why">
+          <div class="block__label">
+            <span>理由<span class="en">（WHY）</span></span>
+            <button type="button" class="mark-btn" data-mark="whyLines" title="選択した言葉にマーカー（Ctrl / ⌘ + M）">マーカー</button>
+          </div>
+          <ul class="lines" id="whyLines"></ul>
+          <button type="button" class="add-line" data-add="whyLines">＋ 理由を追加</button>
+        </div>
+      </div>
+
+      <!-- 右ページ：結論＋行動 -->
+      <div class="page page--right">
+        <div class="boxed">
+          <span class="chip">結論</span>
+          <textarea id="fConclusion" class="conclusion" rows="2" placeholder="◯◯なのは、△△だから"></textarea>
+        </div>
+
+        <div class="boxed list-block" data-list="action">
+          <span class="chip chip--filled"><input type="text" id="actionLabel" class="chip__input" value="行動" maxlength="8" aria-label="欄の見出し（自由にアレンジ）"></span>
+          <ul class="lines" id="actionLines"></ul>
+          <div class="list-block__foot">
+            <button type="button" class="add-line" data-add="actionLines">＋ 行動を追加</button>
+            <button type="button" class="mark-btn" data-mark="actionLines" title="選択した言葉にマーカー（Ctrl / ⌘ + M）">マーカー</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions no-print">
+      <button class="btn btn--primary" id="saveBtn" type="button">保存する</button>
+      <button class="btn" id="newBtn" type="button">新規</button>
+      <button class="btn btn--small" id="printBtn" type="button">印刷 / PDF</button>
+      <button class="btn btn--ghost" id="deleteBtn" type="button" hidden>削除</button>
+      <span class="hint">Enterで次の行 ／ 文字を選んで ⌘・Ctrl + M でマーカー ／ ⌘・Ctrl + S で保存</span>
+    </div>
+  </section>
+
+  <!-- ============ 一覧 ============ -->
+  <section id="view-list" class="view">
+    <div class="toolbar">
+      <input type="search" id="search" class="search" placeholder="キーワードで検索（本文・日付）">
+      <div class="toolbar__spacer"></div>
+      <div class="menu">
+        <button class="btn btn--small" id="exportMdBtn" type="button">Markdown書き出し</button>
+        <button class="btn btn--small" id="exportBtn" type="button">バックアップ</button>
+        <label class="btn btn--small" for="importInput">読み込み</label>
+        <input type="file" id="importInput" accept="application/json" hidden>
+      </div>
+    </div>
+    <div id="entryList" class="entry-list"></div>
+  </section>
+</main>
+
+<button type="button" id="markFloat" class="mark-float">選んだ言葉にマーカー</button>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
 /* ===== 言語化ノート =====
  * 書籍『言語化ノート術』の見開きフォーマットを写したノートアプリ。
  * 左ページ = 問い（メモ WHAT ＋のはなぜか？）と理由（WHY）の箇条書き、
@@ -785,3 +1181,6 @@
   render();
   connectCloud();
 })();
+</script>
+</body>
+</html>

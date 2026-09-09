@@ -2,10 +2,16 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="言語化ノート">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f7f4ee">
 <title>言語化ノート</title>
 <link rel="stylesheet" href="assets/style.css">
+<link rel="manifest" href="manifest.webmanifest" data-pwa>
+<link rel="apple-touch-icon" href="assets/icon-180.png" data-pwa>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📓</text></svg>">
 </head>
 <body>
@@ -29,6 +35,7 @@
       </label>
       <div class="toolbar__spacer"></div>
       <span class="streak" id="streak"></span>
+      <span class="sync" id="sync" hidden></span>
     </div>
 
     <input type="text" id="entryTitle" class="spread-title" placeholder="今回の事例のタイトル（任意）">
@@ -95,8 +102,16 @@
   </section>
 </main>
 
+<button type="button" id="markFloat" class="mark-float">選んだ言葉にマーカー</button>
+
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="assets/app.js"></script>
+<script data-pwa>
+  // ホーム画面から開いたときもオフラインで動くようにする（https配信時のみ）
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>
 </body>
 </html>

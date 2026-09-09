@@ -1,0 +1,17 @@
+{
+  "name": "言語化ノート",
+  "short_name": "言語化ノート",
+  "description": "メモ（WHAT）→理由（WHY）→結論→行動の見開きで、毎日の思考を言語化するノート",
+  "lang": "ja",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f1ece1",
+  "theme_color": "#f7f4ee",
+  "icons": [
+    { "src": "assets/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
