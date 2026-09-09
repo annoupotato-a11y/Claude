@@ -22,7 +22,7 @@
 <main>
   <!-- ============ 書く ============ -->
   <section id="view-write" class="view is-active">
-    <div class="toolbar">
+    <div class="toolbar no-print">
       <label class="field-date">
         <span>日付</span>
         <input type="date" id="entryDate">
@@ -31,38 +31,51 @@
       <span class="streak" id="streak"></span>
     </div>
 
-    <form id="noteForm" class="note-sheet" autocomplete="off">
-      <div class="note-sheet__inner">
+    <input type="text" id="entryTitle" class="spread-title" placeholder="今回の事例のタイトル（任意）">
 
-        <div class="block block--what">
-          <div class="block__label">メモ<span class="en">（WHAT）</span></div>
-          <textarea id="fWhat" rows="2" placeholder="気になったこと・出来事・感じたことを一文で"></textarea>
-          <p class="block__suffix">＋ のはなぜか？</p>
+    <!-- 見開きノート -->
+    <div class="spread">
+      <!-- 左ページ：問い＋理由 -->
+      <div class="page page--left">
+        <div class="boxed boxed--question">
+          <textarea id="fWhat" class="question" rows="1" placeholder="プレゼン終了。テンション上がった。"></textarea>
+          <span class="question__suffix">のはなぜか？</span>
         </div>
 
-        <div class="block block--why">
-          <div class="block__label">理由<span class="en">（WHY）</span></div>
-          <textarea id="fWhy" rows="5" placeholder="なぜそう思ったのか。事実・背景・感情を掘り下げる"></textarea>
+        <div class="list-block" data-list="why">
+          <div class="block__label">
+            <span>理由<span class="en">（WHY）</span></span>
+            <button type="button" class="mark-btn" data-mark="whyLines" title="選択した言葉にマーカー（Ctrl / ⌘ + M）">マーカー</button>
+          </div>
+          <ul class="lines" id="whyLines"></ul>
+          <button type="button" class="add-line" data-add="whyLines">＋ 理由を追加</button>
         </div>
-
-        <div class="block block--conclusion">
-          <div class="block__label">結論</div>
-          <textarea id="fConclusion" rows="3" placeholder="だから何が言えるか。ひとことで言い切る"></textarea>
-        </div>
-
-        <div class="block block--memo">
-          <div class="block__label">メモ欄<span class="en">（自由にアレンジ）</span></div>
-          <textarea id="fMemo" rows="4" placeholder="引用・キーワード・明日やること など自由に"></textarea>
-        </div>
-
       </div>
-    </form>
 
-    <div class="actions">
-      <button class="btn btn--primary" id="saveBtn">保存する</button>
+      <!-- 右ページ：結論＋行動 -->
+      <div class="page page--right">
+        <div class="boxed">
+          <span class="chip">結論</span>
+          <textarea id="fConclusion" class="conclusion" rows="2" placeholder="◯◯なのは、△△だから"></textarea>
+        </div>
+
+        <div class="boxed list-block" data-list="action">
+          <span class="chip chip--filled"><input type="text" id="actionLabel" class="chip__input" value="行動" maxlength="8" aria-label="欄の見出し（自由にアレンジ）"></span>
+          <ul class="lines" id="actionLines"></ul>
+          <div class="list-block__foot">
+            <button type="button" class="add-line" data-add="actionLines">＋ 行動を追加</button>
+            <button type="button" class="mark-btn" data-mark="actionLines" title="選択した言葉にマーカー（Ctrl / ⌘ + M）">マーカー</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions no-print">
+      <button class="btn btn--primary" id="saveBtn" type="button">保存する</button>
       <button class="btn" id="newBtn" type="button">新規</button>
+      <button class="btn btn--small" id="printBtn" type="button">印刷 / PDF</button>
       <button class="btn btn--ghost" id="deleteBtn" type="button" hidden>削除</button>
-      <span class="hint">Ctrl / ⌘ + Enter で保存</span>
+      <span class="hint">Enterで次の行 ／ 文字を選んで ⌘・Ctrl + M でマーカー ／ ⌘・Ctrl + S で保存</span>
     </div>
   </section>
 
