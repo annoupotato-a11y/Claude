@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f7f4ee">
+<title>言語化ノート</title>
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📓</text></svg>">
+</head>
+<body>
+<header class="app-header">
+  <div class="app-header__inner">
+    <h1 class="app-title">言語化ノート<span class="app-title__sub">毎日の思考を言葉にする</span></h1>
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" role="tab" data-view="write" aria-selected="true">書く</button>
+      <button class="tab" role="tab" data-view="list" aria-selected="false">ノート一覧<span class="tab__count" id="tabCount">0</span></button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- ============ 書く ============ -->
+  <section id="view-write" class="view is-active">
+    <div class="toolbar">
+      <label class="field-date">
+        <span>日付</span>
+        <input type="date" id="entryDate">
+      </label>
+      <div class="toolbar__spacer"></div>
+      <span class="streak" id="streak"></span>
+    </div>
+
+    <form id="noteForm" class="note-sheet" autocomplete="off">
+      <div class="note-sheet__inner">
+
+        <div class="block block--what">
+          <div class="block__label">メモ<span class="en">（WHAT）</span></div>
+          <textarea id="fWhat" rows="2" placeholder="気になったこと・出来事・感じたことを一文で"></textarea>
+          <p class="block__suffix">＋ のはなぜか？</p>
+        </div>
+
+        <div class="block block--why">
+          <div class="block__label">理由<span class="en">（WHY）</span></div>
+          <textarea id="fWhy" rows="5" placeholder="なぜそう思ったのか。事実・背景・感情を掘り下げる"></textarea>
+        </div>
+
+        <div class="block block--conclusion">
+          <div class="block__label">結論</div>
+          <textarea id="fConclusion" rows="3" placeholder="だから何が言えるか。ひとことで言い切る"></textarea>
+        </div>
+
+        <div class="block block--memo">
+          <div class="block__label">メモ欄<span class="en">（自由にアレンジ）</span></div>
+          <textarea id="fMemo" rows="4" placeholder="引用・キーワード・明日やること など自由に"></textarea>
+        </div>
+
+      </div>
+    </form>
+
+    <div class="actions">
+      <button class="btn btn--primary" id="saveBtn">保存する</button>
+      <button class="btn" id="newBtn" type="button">新規</button>
+      <button class="btn btn--ghost" id="deleteBtn" type="button" hidden>削除</button>
+      <span class="hint">Ctrl / ⌘ + Enter で保存</span>
+    </div>
+  </section>
+
+  <!-- ============ 一覧 ============ -->
+  <section id="view-list" class="view">
+    <div class="toolbar">
+      <input type="search" id="search" class="search" placeholder="キーワードで検索（本文・日付）">
+      <div class="toolbar__spacer"></div>
+      <div class="menu">
+        <button class="btn btn--small" id="exportMdBtn" type="button">Markdown書き出し</button>
+        <button class="btn btn--small" id="exportBtn" type="button">バックアップ</button>
+        <label class="btn btn--small" for="importInput">読み込み</label>
+        <input type="file" id="importInput" accept="application/json" hidden>
+      </div>
+    </div>
+    <div id="entryList" class="entry-list"></div>
+  </section>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>
