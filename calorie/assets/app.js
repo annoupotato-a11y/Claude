@@ -29,7 +29,8 @@
     engineNote: $('engineNote'),
     productForm: $('productForm'), productInput: $('productInput'), productList: $('productList'), productBtn: $('productBtn'),
     editor: $('editor'), editorPhoto: $('editorPhoto'), mealType: $('mealType'), mealTime: $('mealTime'),
-    hintRow: $('hintRow'), hintInput: $('hintInput'), reanalyzeBtn: $('reanalyzeBtn'),
+    preNote: $('preNote'), hintLabel: $('hintLabel'), hintInput: $('hintInput'), reanalyzeBtn: $('reanalyzeBtn'),
+    questions: $('questions'), notesList: $('notesList'),
     status: $('status'), statusText: $('statusText'), stopBtn: $('stopBtn'), aiNote: $('aiNote'),
     items: $('items'), addItem: $('addItem'), labelTotal: $('labelTotal'),
     cancelBtn: $('cancelBtn'), deleteBtn: $('deleteBtn'), saveBtn: $('saveBtn'),
@@ -107,6 +108,7 @@
       items: (Array.isArray(m.items) ? m.items : []).map(normalizeItem).filter(Boolean),
       photo: typeof m.photo === 'string' && m.photo.startsWith('data:image/') ? m.photo : '',
       product: typeof m.product === 'string' ? m.product.slice(0, 80) : '',   // 商品名で記録したとき
+      notes: (Array.isArray(m.notes) ? m.notes : []).map((n) => String(n).trim().slice(0, 200)).filter(Boolean).slice(0, 10),
       createdAt: m.createdAt || new Date().toISOString(),
       updatedAt: m.updatedAt || m.createdAt || new Date().toISOString(),
     };
@@ -265,17 +267,31 @@
     }
   }
 
-  const PROMPT = (hint) => [
-    'この写真の食事の栄養を推定してください。',
-    '写っている料理・食品を1品ずつ挙げ、日本の一般的な1人前や、器・箸・手などの大きさから量を見積もり、',
+  // 写真があれば写真＋補足から、なければ補足の文章だけから推定する。
+  // previous（前回の推定）を渡すと、補足に合わせて必要なところだけ直してもらう
+  const PROMPT = ({ hasPhoto, notes, previous }) => [
+    hasPhoto ? 'この写真の食事の栄養を推定してください。' : '次の文章で説明された食事の栄養を推定してください。',
+    hasPhoto
+      ? '写っている料理・食品を1品ずつ挙げ、日本の一般的な1人前や、器・箸・手などの大きさから量を見積もり、'
+      : '説明に出てくる料理・食品を1品ずつ挙げ、量の記載がなければ日本の一般的な1人前として、',
     'それぞれのエネルギー(kcal)・たんぱく質(g)・脂質(g)・炭水化物(g)を日本食品標準成分表の値を目安に推定します。',
-    '揚げ物の衣や油、ソース・ドレッシング、飲み物も見えていれば含めてください。',
-    hint ? `食べた人からの補足（これを優先してください）: ${hint}` : '',
-    '食べ物が写っていない場合は dishes を空にし、note にその旨を書いてください。',
+    '揚げ物の衣や油、ソース・ドレッシング、飲み物も含めてください。',
+    notes.length
+      ? ['', `${hasPhoto ? '食べた人からの補足（写真より優先します。' : '食べた人の説明と補足（'}量の違い・食べ残し・おかわり・見えない中身・調味料や油の量・調理法などを反映してください）:`,
+        ...notes.map((n) => `- ${n}`)].join('\n')
+      : '',
+    previous && previous.length
+      ? ['', '前回の推定（補足に関係するところだけ直し、ほかはそのままにしてください）:',
+        JSON.stringify(previous.map((it) => ({ name: it.name, amount: it.amount, kcal: it.kcal, protein: it.p, fat: it.f, carbs: it.c })))].join('\n')
+      : '',
     '',
-    '次の形の JSON だけを返してください。name と amount と note は日本語で書きます。',
+    hasPhoto ? '食べ物が写っていない場合は dishes を空にし、note にその旨を書いてください。' : '食べ物が分からない場合は dishes を空にし、note にその旨を書いてください。',
+    `${hasPhoto ? '写真だけでは' : '説明だけでは'}判断できず、答えによって推定が大きく変わる点があれば、questions に食べた人への短い質問を最大3つ入れます`,
+    '（例：「ご飯は普通盛りですか、大盛りですか？」「飲み物は加糖ですか？」）。補足ですでに分かっていることは聞かず、なければ空にします。',
+    '',
+    '次の形の JSON だけを返してください。name・amount・note・questions は日本語で書きます。',
     '{"dishes":[{"name":"鶏の唐揚げ","amount":"5個（約150g）","kcal":420,"protein":28,"fat":26,"carbs":15}],',
-    ' "confidence":"high|medium|low", "note":"推定の前提や見えにくかった点を1文で"}',
+    ' "confidence":"high|medium|low", "note":"推定の前提や補足をどう反映したかを1文で", "questions":["ご飯の量は普通盛りですか？"]}',
   ].filter(Boolean).join('\n');
 
   const RESULT_SCHEMA = {
@@ -295,8 +311,9 @@
       },
       confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
       note: { type: 'string' },
+      questions: { type: 'array', items: { type: 'string' } },
     },
-    required: ['dishes', 'confidence', 'note'],
+    required: ['dishes', 'confidence', 'note', 'questions'],
     additionalProperties: false,
   };
 
@@ -389,8 +406,9 @@
     if (draft.photo) el.editorPhoto.src = draft.photo;
     el.mealTime.value = draft.time;
     el.hintInput.value = '';
-    el.hintRow.hidden = !draftBlob;
     el.aiNote.hidden = true;
+    renderQuestions([]);
+    renderNotes();
     el.deleteBtn.hidden = isNew;
     el.deleteBtn.textContent = '削除';
     delete el.deleteBtn.dataset.armed;
@@ -452,33 +470,103 @@
       <dt>炭水化物</dt><dd>${round1(t.c)} g</dd>`;
   }
 
+  /* 補足（自然言語）: 書いた順に draft.notes に積み、毎回まとめて Claude に渡す */
+  const hasEstimate = () => draft && draft.items.some((it) => it.name || it.kcal);
+  function renderNotes() {
+    const notes = draft ? draft.notes || [] : [];
+    el.notesList.hidden = !notes.length;
+    el.notesList.replaceChildren(...notes.map((n, i) => {
+      const li = document.createElement('li');
+      const text = document.createElement('span');
+      text.textContent = n;
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.textContent = '×';
+      del.setAttribute('aria-label', 'この補足を消す');
+      del.addEventListener('click', () => { draft.notes.splice(i, 1); renderNotes(); });
+      li.append(text, del);
+      return li;
+    }));
+    // 写真も推定もないときは、文章だけで推定する入口になる
+    const textOnly = !draftBlob && !draft?.photo && !hasEstimate();
+    el.hintLabel.textContent = textOnly ? '食べたものを文章で書く' : '写真で分からないことを書く';
+    el.hintInput.placeholder = textOnly
+      ? '例：牛丼の並盛に生卵、味噌汁。紅しょうがたっぷり'
+      : '例：ご飯は大盛り。中身は豚肉。ドレッシングは半分だけかけた';
+    el.reanalyzeBtn.textContent = textOnly ? '文章から推定' : '補足して再計算';
+  }
+  function renderQuestions(questions) {
+    el.questions.hidden = !questions.length;
+    el.questions.replaceChildren(...questions.map((q) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'question';
+      b.textContent = q;
+      // 押すと質問を引用した書き出しを入れる。続けて答えを書けばよい
+      b.addEventListener('click', () => {
+        const prefix = `${q} → `;
+        const cur = el.hintInput.value.trim();
+        el.hintInput.value = cur ? `${cur}\n${prefix}` : prefix;
+        el.hintInput.focus();
+        el.hintInput.setSelectionRange(el.hintInput.value.length, el.hintInput.value.length);
+        b.remove();
+        if (!el.questions.querySelector('.question')) el.questions.hidden = true;
+      });
+      return b;
+    }));
+  }
+  function takeHint() {
+    const text = el.hintInput.value.trim();
+    if (!text || !draft) return false;
+    // 「質問 → 」だけで答えが空の行は捨てる
+    const lines = text.split('\n').map((l) => l.trim()).filter((l) => l && !/→\s*$/.test(l));
+    if (!lines.length) return false;
+    draft.notes = (draft.notes || []).concat(lines.join('。')).slice(-10);
+    el.hintInput.value = '';
+    renderNotes();
+    return true;
+  }
+
   async function runAnalysis() {
-    if (!draftBlob || !draft) return;
-    const kind = engineKind();
+    if (!draft) return;
+    takeHint();
+    const hasPhoto = !!draftBlob;
+    const notes = draft.notes || [];
+    if (!hasPhoto && !notes.length) { el.hintInput.focus(); toast('食べたものや補足を文章で書いてください'); return; }
+    const kind = engineKind(hasPhoto);
     if (kind === 'none') { renderEngine(); toast('解析の準備ができていません。手で入力するか、設定で API キーを入れてください'); return; }
     if (analyzing) analyzing.abort();
     const ctl = new AbortController();
     analyzing = ctl;
     el.status.hidden = false;
-    el.statusText.textContent = '写真を解析しています…（30秒ほどかかることがあります）';
+    el.statusText.textContent = hasPhoto
+      ? '写真を解析しています…（30秒ほどかかることがあります）'
+      : '補足をもとに計算しています…';
     el.aiNote.hidden = true;
     el.reanalyzeBtn.disabled = true;
     el.saveBtn.disabled = true;
     const target = draft;
     try {
-      const hint = el.hintInput.value.trim();
+      // 2回目以降は前回の推定を渡し、補足のぶんだけ直してもらう
+      const previous = hasEstimate() ? draft.items : null;
+      const prompt = PROMPT({ hasPhoto, notes, previous });
       const result = kind === 'claude'
-        ? await analyzeWithClaude(PROMPT(hint), draftBlob, ctl.signal)
-        : await analyzeWithApiKey(PROMPT(hint), draftBlob, ctl.signal);
+        ? await analyzeWithClaude(prompt, draftBlob, ctl.signal)
+        : await analyzeWithApiKey(prompt, draftBlob, ctl.signal);
       if (draft !== target) return;
       const dishes = Array.isArray(result && result.dishes) ? result.dishes : [];
-      draft.items = dishes.map(normalizeItem).filter(Boolean);
+      const items = dishes.map(normalizeItem).filter(Boolean);
+      if (items.length || !previous) draft.items = items;
       const conf = { high: '確度：高', medium: '確度：中', low: '確度：低（量を確かめてください）' }[result && result.confidence] || '';
       const note = result && typeof result.note === 'string' ? result.note : '';
       el.aiNote.textContent = [conf, note].filter(Boolean).join('　');
       el.aiNote.hidden = !el.aiNote.textContent;
-      if (!draft.items.length) toast('食べ物を見つけられませんでした。手で入力できます');
+      const questions = (Array.isArray(result && result.questions) ? result.questions : [])
+        .map((q) => String(q).trim()).filter(Boolean).slice(0, 3);
+      renderQuestions(questions);
+      if (!items.length) toast('食べ物を見つけられませんでした。手で入力できます');
       renderItems();
+      renderNotes();
     } catch (e) {
       if (!(e instanceof AnalyzeError && e.quiet)) toast(e.message || '解析に失敗しました');
     } finally {
@@ -503,25 +591,37 @@
     const date = currentDay;
     openEditor({
       id: uid(), date, time: hm(now), type: guessType(now), items: [], photo: thumb,
-      createdAt: now.toISOString(), updatedAt: now.toISOString(),
+      notes: takePreNote(), createdAt: now.toISOString(), updatedAt: now.toISOString(),
     }, true);
     runAnalysis();
   }
 
+  function takePreNote() {
+    const text = el.preNote.value.trim();
+    el.preNote.value = '';
+    return text ? [text] : [];
+  }
+
+  // 手で入力：撮る前の補足欄に書いてあれば、その文章から推定する
   function startManual() {
     draftBlob = null;
     const now = new Date();
+    const notes = takePreNote();
     openEditor({
       id: uid(), date: currentDay, time: hm(now), type: guessType(now),
-      items: [{ name: '', amount: '', kcal: 0, p: 0, f: 0, c: 0 }], photo: '',
-      createdAt: now.toISOString(), updatedAt: now.toISOString(),
+      items: notes.length ? [] : [{ name: '', amount: '', kcal: 0, p: 0, f: 0, c: 0 }], photo: '',
+      notes, createdAt: now.toISOString(), updatedAt: now.toISOString(),
     }, true);
-    const first = el.items.querySelector('input');
-    if (first) first.focus({ preventScroll: true });
+    if (notes.length && engineKind(false) !== 'none') { runAnalysis(); return; }
+    if (!draft.items.length) draft.items.push({ name: '', amount: '', kcal: 0, p: 0, f: 0, c: 0 });
+    renderItems();
+    renderNotes();
+    el.hintInput.focus({ preventScroll: true });
   }
 
   function saveDraft() {
     if (!draft) return;
+    takeHint();   // 再計算せずに書いた補足もメモとして残す
     const items = draft.items.map(normalizeItem).filter((it) => it.name || it.kcal);
     if (!items.length) { toast('品目を1つ以上入れてください'); return; }
     const { isNew, ...rest } = draft;
@@ -715,6 +815,12 @@
     sub.className = 'meal__sub';
     sub.textContent = `${m.time}　P ${round(t.p)}g・F ${round(t.f)}g・C ${round(t.c)}g`;
     body.append(names, sub);
+    if (m.notes.length) {
+      const memo = document.createElement('div');
+      memo.className = 'meal__sub meal__memo';
+      memo.textContent = `補足：${m.notes.join(' / ')}`;
+      body.append(memo);
+    }
     const kcal = document.createElement('div');
     kcal.className = 'meal__kcal';
     kcal.innerHTML = `${fmt(t.kcal)}<small>kcal</small>`;
@@ -874,17 +980,17 @@
           ? [slash(d), WEEKDAYS[parseYmd(d).getDay()], round(t.kcal), settings.goal, round(t.kcal - settings.goal), round1(t.p), round1(t.f), round1(t.c), list.length]
           : [slash(d), WEEKDAYS[parseYmd(d).getDay()], null, settings.goal, null, null, null, null, 0]);
       });
-      const detail = [['日付', '時刻', '区分', '品目', '量', 'kcal', 'たんぱく質(g)', '脂質(g)', '炭水化物(g)', '記録方法']];
+      const detail = [['日付', '時刻', '区分', '品目', '量', 'kcal', 'たんぱく質(g)', '脂質(g)', '炭水化物(g)', '記録方法', '補足']];
       days.forEach((d) => mealsOn(d).forEach((m) => {
         const how = m.product ? '商品名' : m.photo ? '写真' : '手入力';
-        m.items.forEach((it) => detail.push([slash(d), m.time, TYPES[m.type], it.name, it.amount, it.kcal, it.p, it.f, it.c, how]));
+        m.items.forEach((it) => detail.push([slash(d), m.time, TYPES[m.type], it.name, it.amount, it.kcal, it.p, it.f, it.c, how, m.notes.join(' / ')]));
       }));
 
       const wb = XLSX.utils.book_new();
       const s1 = XLSX.utils.aoa_to_sheet(daily);
       s1['!cols'] = [12, 5, 10, 10, 11, 13, 10, 12, 10].map((w) => ({ wch: w }));
       const s2 = XLSX.utils.aoa_to_sheet(detail);
-      s2['!cols'] = [12, 7, 7, 28, 16, 8, 13, 10, 12, 10].map((w) => ({ wch: w }));
+      s2['!cols'] = [12, 7, 7, 28, 16, 8, 13, 10, 12, 10, 40].map((w) => ({ wch: w }));
       XLSX.utils.book_append_sheet(wb, s1, '日別');
       XLSX.utils.book_append_sheet(wb, s2, '食事の明細');
       const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -967,7 +1073,11 @@
     if (inputs[0]) inputs[0].focus();
   });
   el.reanalyzeBtn.addEventListener('click', runAnalysis);
-  el.hintInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runAnalysis(); } });
+  // Enter で送信、Shift+Enter で改行（変換確定の Enter は除く）
+  el.hintInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); runAnalysis(); }
+  });
+  el.preNote.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) e.preventDefault(); });
   el.stopBtn.addEventListener('click', () => { if (analyzing) analyzing.abort(); });
   el.cancelBtn.addEventListener('click', closeEditor);
   el.saveBtn.addEventListener('click', saveDraft);

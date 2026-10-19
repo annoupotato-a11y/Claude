@@ -62,6 +62,11 @@
     </div>
 
     <!-- 撮る -->
+    <label class="pre-note">
+      <span>写真で分からないこと（任意・撮る前に書いておけます）</span>
+      <input type="text" id="preNote" autocomplete="off" enterkeyhint="done"
+             placeholder="例：ご飯は大盛り、唐揚げを2個残した">
+    </label>
     <div class="capture">
       <label class="capture__btn capture__btn--main">
         <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
@@ -78,7 +83,7 @@
       <label class="product__field">
         <span>商品をそのまま食べたとき</span>
         <input type="text" id="productInput" list="productList" autocomplete="off" enterkeyhint="done"
-               placeholder="例：セブン ツナマヨおにぎり 2個">
+               placeholder="例：ツナマヨおにぎり 2個">
       </label>
       <datalist id="productList"></datalist>
       <button type="submit" class="btn btn--primary" id="productBtn">記録</button>
@@ -97,11 +102,19 @@
             <button type="button" data-type="snack" role="radio">間食</button>
           </div>
           <label class="field-inline">時刻 <input type="time" id="mealTime"></label>
-          <div class="hint-row" id="hintRow">
-            <input type="text" id="hintInput" placeholder="補足（例：ご飯は半分、ドレッシングなし）">
-            <button type="button" class="text-btn" id="reanalyzeBtn">もう一度解析</button>
-          </div>
         </div>
+      </div>
+
+      <!-- 写真では伝わらないことを文章で補う -->
+      <div class="note-box">
+        <label class="note-box__label" for="hintInput" id="hintLabel">写真で分からないことを書く</label>
+        <div class="questions" id="questions" hidden></div>
+        <div class="hint-row">
+          <textarea id="hintInput" rows="2" enterkeyhint="send"
+                    placeholder="例：ご飯は大盛り。中身は豚肉。ドレッシングは半分だけかけた"></textarea>
+          <button type="button" class="btn btn--ghost" id="reanalyzeBtn">補足して再計算</button>
+        </div>
+        <ul class="notes" id="notesList" hidden></ul>
       </div>
 
       <div class="status" id="status" hidden>
