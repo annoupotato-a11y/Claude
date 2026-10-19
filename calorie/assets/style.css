@@ -186,12 +186,17 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
   padding: 8px 10px; background: var(--card); font-size: 16px; line-height: 1.5; resize: vertical;
 }
 .hint-row .btn { flex: none; background: var(--card); }
-.questions { display: flex; flex-wrap: wrap; gap: 6px; }
-.questions::before { content: "Claude からの質問"; width: 100%; font-size: 12px; color: var(--ink-soft); }
-.question {
+.questions { display: flex; flex-direction: column; gap: 8px; }
+.questions::before { content: "Claude からの質問（押すとすぐ再計算します）"; font-size: 12px; color: var(--ink-soft); }
+.question { background: var(--card); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.question__text { margin: 0; font-weight: 700; font-size: 14px; }
+.question__options { display: flex; flex-wrap: wrap; gap: 6px; }
+.choice {
   border: 1px solid var(--accent); color: var(--accent); background: var(--card);
-  border-radius: 999px; padding: 4px 12px; font-size: 13px; text-align: left;
+  border-radius: 999px; padding: 5px 14px; font-size: 14px; font-weight: 700; min-height: 36px;
 }
+.choice:hover { background: var(--accent); color: var(--accent-ink); }
+.choice--other { border-style: dashed; font-weight: 400; }
 .notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .notes li { display: flex; gap: 6px; align-items: baseline; font-size: 13px; }
 .notes li::before { content: "補足"; flex: none; font-size: 11px; font-weight: 700; color: var(--accent); }

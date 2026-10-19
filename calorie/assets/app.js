@@ -286,12 +286,13 @@
       : '',
     '',
     hasPhoto ? '食べ物が写っていない場合は dishes を空にし、note にその旨を書いてください。' : '食べ物が分からない場合は dishes を空にし、note にその旨を書いてください。',
-    `${hasPhoto ? '写真だけでは' : '説明だけでは'}判断できず、答えによって推定が大きく変わる点があれば、questions に食べた人への短い質問を最大3つ入れます`,
-    '（例：「ご飯は普通盛りですか、大盛りですか？」「飲み物は加糖ですか？」）。補足ですでに分かっていることは聞かず、なければ空にします。',
+    `${hasPhoto ? '写真だけでは' : '説明だけでは'}判断できず、答えによって推定が大きく変わる点があれば、questions に食べた人への短い質問を最大3つ、影響の大きい順に入れます。`,
+    'それぞれ options に、タップで答えられる短い選択肢を2〜4個付けます（例：質問「ご飯の量は？」→ 選択肢「少なめ」「普通盛り」「大盛り」「半分残した」）。',
+    '補足ですでに分かっていることは聞かず、なければ空にします。',
     '',
     '次の形の JSON だけを返してください。name・amount・note・questions は日本語で書きます。',
     '{"dishes":[{"name":"鶏の唐揚げ","amount":"5個（約150g）","kcal":420,"protein":28,"fat":26,"carbs":15}],',
-    ' "confidence":"high|medium|low", "note":"推定の前提や補足をどう反映したかを1文で", "questions":["ご飯の量は普通盛りですか？"]}',
+    ' "confidence":"high|medium|low", "note":"推定の前提や補足をどう反映したかを1文で", "questions":[{"question":"ご飯の量は？","options":["少なめ","普通盛り","大盛り"]}]}',
   ].filter(Boolean).join('\n');
 
   const RESULT_SCHEMA = {
@@ -311,7 +312,15 @@
       },
       confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
       note: { type: 'string' },
-      questions: { type: 'array', items: { type: 'string' } },
+      questions: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { question: { type: 'string' }, options: { type: 'array', items: { type: 'string' } } },
+          required: ['question', 'options'],
+          additionalProperties: false,
+        },
+      },
     },
     required: ['dishes', 'confidence', 'note', 'questions'],
     additionalProperties: false,
@@ -495,25 +504,57 @@
       : '例：ご飯は大盛り。中身は豚肉。ドレッシングは半分だけかけた';
     el.reanalyzeBtn.textContent = textOnly ? '文章から推定' : '補足して再計算';
   }
+  // Claude からの質問。選択肢を押すとその答えを補足に足して、すぐ再計算する
+  function normalizeQuestions(list) {
+    return (Array.isArray(list) ? list : []).map((q) => {
+      if (typeof q === 'string') return { question: q.trim(), options: [] };
+      if (!q || typeof q !== 'object') return null;
+      const options = (Array.isArray(q.options) ? q.options : []).map((o) => String(o).trim()).filter(Boolean).slice(0, 4);
+      return { question: String(q.question || '').trim(), options };
+    }).filter((q) => q && q.question).slice(0, 3);
+  }
   function renderQuestions(questions) {
     el.questions.hidden = !questions.length;
     el.questions.replaceChildren(...questions.map((q) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'question';
-      b.textContent = q;
-      // 押すと質問を引用した書き出しを入れる。続けて答えを書けばよい
-      b.addEventListener('click', () => {
-        const prefix = `${q} → `;
+      const box = document.createElement('div');
+      box.className = 'question';
+      const title = document.createElement('p');
+      title.className = 'question__text';
+      title.textContent = q.question;
+      const opts = document.createElement('div');
+      opts.className = 'question__options';
+      q.options.forEach((o) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'choice';
+        b.textContent = o;
+        b.addEventListener('click', () => answer(q.question, o));
+        opts.append(b);
+      });
+      // 選択肢にない答えは文章で書く
+      const other = document.createElement('button');
+      other.type = 'button';
+      other.className = 'choice choice--other';
+      other.textContent = q.options.length ? 'その他（書く）' : '答えを書く';
+      other.addEventListener('click', () => {
+        const prefix = `${q.question} → `;
         const cur = el.hintInput.value.trim();
         el.hintInput.value = cur ? `${cur}\n${prefix}` : prefix;
         el.hintInput.focus();
         el.hintInput.setSelectionRange(el.hintInput.value.length, el.hintInput.value.length);
-        b.remove();
+        box.remove();
         if (!el.questions.querySelector('.question')) el.questions.hidden = true;
       });
-      return b;
+      opts.append(other);
+      box.append(title, opts);
+      return box;
     }));
+  }
+  function answer(question, choice) {
+    if (!draft || analyzing) return;
+    draft.notes = (draft.notes || []).concat(`${question} → ${choice}`).slice(-10);
+    renderNotes();
+    runAnalysis();
   }
   function takeHint() {
     const text = el.hintInput.value.trim();
@@ -543,6 +584,7 @@
       ? '写真を解析しています…（30秒ほどかかることがあります）'
       : '補足をもとに計算しています…';
     el.aiNote.hidden = true;
+    renderQuestions([]);
     el.reanalyzeBtn.disabled = true;
     el.saveBtn.disabled = true;
     const target = draft;
@@ -561,9 +603,7 @@
       const note = result && typeof result.note === 'string' ? result.note : '';
       el.aiNote.textContent = [conf, note].filter(Boolean).join('　');
       el.aiNote.hidden = !el.aiNote.textContent;
-      const questions = (Array.isArray(result && result.questions) ? result.questions : [])
-        .map((q) => String(q).trim()).filter(Boolean).slice(0, 3);
-      renderQuestions(questions);
+      renderQuestions(normalizeQuestions(result && result.questions));
       if (!items.length) toast('食べ物を見つけられませんでした。手で入力できます');
       renderItems();
       renderNotes();
