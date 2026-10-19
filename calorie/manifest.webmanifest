@@ -1,0 +1,15 @@
+{
+  "name": "カロリー手帳",
+  "short_name": "カロリー手帳",
+  "description": "食事の写真を撮るとカロリーとPFCを推定して、1日ごとに記録するアプリ",
+  "lang": "ja",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f8f2",
+  "theme_color": "#f6f8f2",
+  "icons": [
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -1,5 +1,7 @@
 # 言語化ノート
 
+> このリポジトリには、写真からカロリーを推定して記録する **[カロリー手帳](calorie/README.md)**（`calorie/`）も入っています。
+
 書籍『言語化ノート術』のフォーマット（**メモ（WHAT）＋のはなぜか？ → 理由（WHY） → 結論 → 行動**）を、
 毎日書き留めていくためのシンプルなWebアプリです。
 
@@ -98,7 +100,7 @@ python3 tools/make-icons.py            # ホーム画面用アイコンを作り
 | `index.html` / `assets/style.css` / `assets/app.js` | アプリ本体 |
 | `manifest.webmanifest` / `sw.js` / `assets/icon-*.png` | ホーム画面に追加・オフライン対応 |
 | `standalone.html` | 上記をまとめた1ファイル版（生成物） |
-| `tools/build-standalone.mjs` / `tools/make-icons.py` | 生成物を作り直すスクリプト |
+| `tools/build-standalone.mjs` / `tools/make-icons.py` | 生成物を作り直すスクリプト（`--app calorie` でカロリー手帳の1ファイル版） |
 
 ## データの保存場所
 

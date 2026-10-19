@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="カロリー手帳">
+<meta name="theme-color" content="#f6f8f2">
+<title>カロリー手帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="manifest" href="manifest.webmanifest" data-pwa>
+<link rel="apple-touch-icon" href="assets/icon.svg" data-pwa>
+<link rel="icon" href="assets/icon.svg" data-pwa>
+</head>
+<body>
+<header class="app-header">
+  <div class="app-header__inner">
+    <h1 class="app-title">カロリー手帳</h1>
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" role="tab" data-view="day" aria-selected="true">記録</button>
+      <button class="tab" role="tab" data-view="week" aria-selected="false">推移</button>
+      <button class="tab" role="tab" data-view="settings" aria-selected="false">設定</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- ============ 記録（1日分）============ -->
+  <section id="view-day" class="view is-active">
+    <div class="day-nav">
+      <button type="button" class="icon-btn" id="prevDay" aria-label="前の日">‹</button>
+      <label class="day-nav__date">
+        <span id="dayLabel"></span>
+        <input type="date" id="dayInput" aria-label="日付を選ぶ">
+      </label>
+      <button type="button" class="icon-btn" id="nextDay" aria-label="次の日">›</button>
+      <button type="button" class="text-btn" id="todayBtn" hidden>今日</button>
+      <span class="sync" id="sync" hidden></span>
+    </div>
+
+    <!-- 1日の合計 -->
+    <div class="summary">
+      <div class="ring" id="ring" role="img" aria-label="">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="ring__track" cx="60" cy="60" r="52"></circle>
+          <circle class="ring__value" id="ringValue" cx="60" cy="60" r="52"></circle>
+        </svg>
+        <div class="ring__text">
+          <span class="ring__num" id="eatenKcal">0</span>
+          <span class="ring__unit">/ <span id="goalKcal">2000</span> kcal</span>
+        </div>
+      </div>
+      <div class="summary__side">
+        <p class="remain" id="remain"></p>
+        <div class="meters" id="meters"></div>
+      </div>
+    </div>
+
+    <!-- 撮る -->
+    <div class="capture">
+      <label class="capture__btn capture__btn--main">
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l1.5 2H20a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3.5L9 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12.5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        写真を撮る
+      </label>
+      <label class="capture__btn">
+        <input type="file" id="libraryInput" accept="image/*" hidden>
+        写真を選ぶ
+      </label>
+      <button type="button" class="capture__btn" id="manualBtn">手で入力</button>
+    </div>
+    <p class="engine-note" id="engineNote" hidden></p>
+
+    <!-- 解析と編集 -->
+    <section class="editor" id="editor" hidden aria-label="食事の内容">
+      <div class="editor__head">
+        <img id="editorPhoto" class="editor__photo" alt="" hidden>
+        <div class="editor__meta">
+          <div class="seg" id="mealType" role="radiogroup" aria-label="食事の種類">
+            <button type="button" data-type="breakfast" role="radio">朝食</button>
+            <button type="button" data-type="lunch" role="radio">昼食</button>
+            <button type="button" data-type="dinner" role="radio">夕食</button>
+            <button type="button" data-type="snack" role="radio">間食</button>
+          </div>
+          <label class="field-inline">時刻 <input type="time" id="mealTime"></label>
+          <div class="hint-row" id="hintRow">
+            <input type="text" id="hintInput" placeholder="補足（例：ご飯は半分、ドレッシングなし）">
+            <button type="button" class="text-btn" id="reanalyzeBtn">もう一度解析</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="status" id="status" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="statusText">写真を解析しています…</span>
+        <button type="button" class="text-btn" id="stopBtn">中止</button>
+      </div>
+      <p class="ai-note" id="aiNote" hidden></p>
+
+      <!-- 栄養成分表示 -->
+      <div class="label" id="labelBox">
+        <div class="label__title">栄養成分表示<span>（推定）</span></div>
+        <div class="items" id="items"></div>
+        <button type="button" class="add-item" id="addItem">＋ 品目を追加</button>
+        <dl class="label__total" id="labelTotal"></dl>
+      </div>
+
+      <div class="editor__actions">
+        <button type="button" class="btn btn--ghost" id="cancelBtn">やめる</button>
+        <button type="button" class="btn btn--danger" id="deleteBtn" hidden>削除</button>
+        <button type="button" class="btn btn--primary" id="saveBtn">記録する</button>
+      </div>
+    </section>
+
+    <!-- その日の食事 -->
+    <div class="meals" id="meals"></div>
+  </section>
+
+  <!-- ============ 推移 ============ -->
+  <section id="view-week" class="view">
+    <div class="week-head">
+      <h2 class="section-title">直近7日</h2>
+      <p class="week-avg" id="weekAvg"></p>
+    </div>
+    <div class="chart" id="weekChart"></div>
+    <p class="chart-tip" id="chartTip">棒をタップするとその日の記録を開きます</p>
+    <div class="table-wrap">
+      <table class="week-table" id="weekTable">
+        <thead><tr><th>日付</th><th>kcal</th><th>P</th><th>F</th><th>C</th><th>食事</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 設定 ============ -->
+  <section id="view-settings" class="view">
+    <form class="card" id="goalForm">
+      <h2 class="section-title">1日の目標</h2>
+      <label class="field">目標エネルギー（kcal）
+        <input type="number" id="goalInput" min="800" max="6000" step="10" inputmode="numeric">
+      </label>
+      <details class="calc">
+        <summary>体格から目安を計算する</summary>
+        <div class="calc__grid">
+          <label class="field">性別
+            <select id="pSex"><option value="female">女性</option><option value="male">男性</option></select>
+          </label>
+          <label class="field">年齢<input type="number" id="pAge" min="10" max="100" inputmode="numeric"></label>
+          <label class="field">身長（cm）<input type="number" id="pHeight" min="100" max="230" inputmode="decimal"></label>
+          <label class="field">体重（kg）<input type="number" id="pWeight" min="25" max="250" step="0.1" inputmode="decimal"></label>
+          <label class="field field--wide">ふだんの活動量
+            <select id="pActivity">
+              <option value="1.5">低い（座っていることが多い）</option>
+              <option value="1.75" selected>ふつう（通勤・家事・軽い運動）</option>
+              <option value="2.0">高い（立ち仕事・よく運動する）</option>
+            </select>
+          </label>
+          <label class="field field--wide">目的
+            <select id="pPlan">
+              <option value="-400">減量（1日 -400kcal）</option>
+              <option value="0" selected>維持</option>
+              <option value="300">増量（1日 +300kcal）</option>
+            </select>
+          </label>
+        </div>
+        <p class="calc__out" id="calcOut"></p>
+        <button type="button" class="btn btn--ghost" id="applyCalc">この値を目標にする</button>
+      </details>
+      <button type="submit" class="btn btn--primary">保存</button>
+    </form>
+
+    <form class="card" id="keyForm">
+      <h2 class="section-title">写真の解析</h2>
+      <p class="card__lead" id="engineState"></p>
+      <label class="field">Anthropic API キー
+        <input type="password" id="apiKey" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
+      </label>
+      <p class="card__note">キーはこの端末のブラウザにだけ保存され、解析時に Anthropic へ直接送られます。claude.ai 上で開いているときはキーは不要です。</p>
+      <div class="row">
+        <button type="submit" class="btn btn--primary">キーを保存</button>
+        <button type="button" class="btn btn--ghost" id="clearKey">キーを消す</button>
+      </div>
+    </form>
+
+    <div class="card">
+      <h2 class="section-title">データ</h2>
+      <p class="card__note" id="dataState"></p>
+      <div class="row">
+        <button type="button" class="btn btn--ghost" id="exportBtn">バックアップを書き出す</button>
+        <label class="btn btn--ghost">読み込む<input type="file" id="importInput" accept="application/json,.json" hidden></label>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="assets/app.js"></script>
+<script data-pwa>
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>
+</body>
+</html>
