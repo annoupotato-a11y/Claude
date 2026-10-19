@@ -74,6 +74,15 @@
       </label>
       <button type="button" class="capture__btn" id="manualBtn">手で入力</button>
     </div>
+    <form class="product" id="productForm">
+      <label class="product__field">
+        <span>商品をそのまま食べたとき</span>
+        <input type="text" id="productInput" list="productList" autocomplete="off" enterkeyhint="done"
+               placeholder="例：セブン ツナマヨおにぎり 2個">
+      </label>
+      <datalist id="productList"></datalist>
+      <button type="submit" class="btn btn--primary" id="productBtn">記録</button>
+    </form>
     <p class="engine-note" id="engineNote" hidden></p>
 
     <!-- 解析と編集 -->
@@ -126,6 +135,16 @@
     <div class="week-head">
       <h2 class="section-title">直近7日</h2>
       <p class="week-avg" id="weekAvg"></p>
+    </div>
+    <div class="export-row">
+      <label class="field-inline">期間
+        <select id="exportRange">
+          <option value="7">直近7日</option>
+          <option value="30" selected>直近30日</option>
+          <option value="all">すべて</option>
+        </select>
+      </label>
+      <button type="button" class="btn btn--ghost" id="excelBtn">Excel に書き出す</button>
     </div>
     <div class="chart" id="weekChart"></div>
     <p class="chart-tip" id="chartTip">棒をタップするとその日の記録を開きます</p>

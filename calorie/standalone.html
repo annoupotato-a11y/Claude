@@ -153,6 +153,16 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
 .capture__btn svg { width: 24px; height: 24px; flex: none; }
 .capture__btn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .engine-note { margin: -6px 0 0; font-size: 13px; color: var(--ink-soft); }
+.product {
+  display: flex; align-items: flex-end; gap: 8px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px;
+}
+.product__field { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-soft); }
+.product__field input {
+  width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; background: var(--bg); font-size: 16px; color: var(--ink);
+}
+.product .btn { flex: none; min-width: 72px; }
 .engine-note button { padding: 0; }
 
 /* ---------- 編集欄 ---------- */
@@ -288,6 +298,8 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
 .section-title { margin: 0; font-size: 17px; }
 .week-avg { margin: 0; color: var(--ink-soft); font-size: 14px; }
 .week-avg strong { color: var(--ink); }
+.export-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: -6px; }
+.export-row select { border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; background: var(--card); }
 .chart { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 8px 4px; }
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
 .chart text { fill: var(--ink-soft); font: 11px var(--font-body); }
@@ -394,6 +406,15 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
       </label>
       <button type="button" class="capture__btn" id="manualBtn">手で入力</button>
     </div>
+    <form class="product" id="productForm">
+      <label class="product__field">
+        <span>商品をそのまま食べたとき</span>
+        <input type="text" id="productInput" list="productList" autocomplete="off" enterkeyhint="done"
+               placeholder="例：セブン ツナマヨおにぎり 2個">
+      </label>
+      <datalist id="productList"></datalist>
+      <button type="submit" class="btn btn--primary" id="productBtn">記録</button>
+    </form>
     <p class="engine-note" id="engineNote" hidden></p>
 
     <!-- 解析と編集 -->
@@ -446,6 +467,16 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
     <div class="week-head">
       <h2 class="section-title">直近7日</h2>
       <p class="week-avg" id="weekAvg"></p>
+    </div>
+    <div class="export-row">
+      <label class="field-inline">期間
+        <select id="exportRange">
+          <option value="7">直近7日</option>
+          <option value="30" selected>直近30日</option>
+          <option value="all">すべて</option>
+        </select>
+      </label>
+      <button type="button" class="btn btn--ghost" id="excelBtn">Excel に書き出す</button>
     </div>
     <div class="chart" id="weekChart"></div>
     <p class="chart-tip" id="chartTip">棒をタップするとその日の記録を開きます</p>
@@ -534,6 +565,7 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
   const SETTINGS_KEY = 'calorie-note/settings/v1';
   const API_KEY_KEY = 'calorie-note/api-key';   // 端末の外には出さない
   const MODEL = 'claude-opus-5-5';
+  const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
   const TYPES = { breakfast: '朝食', lunch: '昼食', dinner: '夕食', snack: '間食' };
   const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
   // PFC の目安（エネルギー比）: たんぱく質15% / 脂質25% / 炭水化物60%
@@ -549,6 +581,7 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
     remain: $('remain'), meters: $('meters'),
     cameraInput: $('cameraInput'), libraryInput: $('libraryInput'), manualBtn: $('manualBtn'),
     engineNote: $('engineNote'),
+    productForm: $('productForm'), productInput: $('productInput'), productList: $('productList'), productBtn: $('productBtn'),
     editor: $('editor'), editorPhoto: $('editorPhoto'), mealType: $('mealType'), mealTime: $('mealTime'),
     hintRow: $('hintRow'), hintInput: $('hintInput'), reanalyzeBtn: $('reanalyzeBtn'),
     status: $('status'), statusText: $('statusText'), stopBtn: $('stopBtn'), aiNote: $('aiNote'),
@@ -556,6 +589,7 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
     cancelBtn: $('cancelBtn'), deleteBtn: $('deleteBtn'), saveBtn: $('saveBtn'),
     meals: $('meals'),
     weekAvg: $('weekAvg'), weekChart: $('weekChart'), weekTable: $('weekTable'),
+    exportRange: $('exportRange'), excelBtn: $('excelBtn'),
     goalForm: $('goalForm'), goalInput: $('goalInput'),
     pSex: $('pSex'), pAge: $('pAge'), pHeight: $('pHeight'), pWeight: $('pWeight'),
     pActivity: $('pActivity'), pPlan: $('pPlan'), calcOut: $('calcOut'), applyCalc: $('applyCalc'),
@@ -626,6 +660,7 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
       type: TYPES[m.type] ? m.type : 'snack',
       items: (Array.isArray(m.items) ? m.items : []).map(normalizeItem).filter(Boolean),
       photo: typeof m.photo === 'string' && m.photo.startsWith('data:image/') ? m.photo : '',
+      product: typeof m.product === 'string' ? m.product.slice(0, 80) : '',   // 商品名で記録したとき
       createdAt: m.createdAt || new Date().toISOString(),
       updatedAt: m.updatedAt || m.createdAt || new Date().toISOString(),
     };
@@ -763,7 +798,8 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
     engine.imagesOk = !!(limits && limits.images);
     renderEngine();
   }
-  const engineKind = () => (engine.sample && engine.imagesOk ? 'claude' : readText(API_KEY_KEY) ? 'apikey' : 'none');
+  // 写真の解析には画像を送れる Claude が要る。商品名だけなら文字だけで足りる
+  const engineKind = (image = true) => (engine.sample && (!image || engine.imagesOk) ? 'claude' : readText(API_KEY_KEY) ? 'apikey' : 'none');
 
   function renderEngine() {
     const kind = engineKind();
@@ -818,20 +854,33 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
     additionalProperties: false,
   };
 
+  const PRODUCT_PROMPT = (name) => [
+    `日本で売られている市販の商品「${name}」を食べました。この商品の栄養成分を答えてください。`,
+    '入力に個数や量（「2個」「半分」など）が含まれていればその量に換算し、なければ1個（1食分・1袋）とします。',
+    'パッケージの栄養成分表示の値を知っている場合はその値を使い、confidence を "high" にします。',
+    '知らない場合は同じ種類の一般的な商品から推定し、confidence を "medium" か "low" にして、note に推定であることを書きます。',
+    '食べ物や飲み物の商品として解釈できない場合は dishes を空にし、note に理由を書きます。',
+    '',
+    'dishes には商品を1件だけ入れます。name は商品名、amount は「1個（約110g）」のように書きます。',
+    '次の形の JSON だけを返してください。',
+    '{"dishes":[{"name":"ツナマヨネーズおにぎり","amount":"1個（約110g）","kcal":230,"protein":5,"fat":7,"carbs":37}],',
+    ' "confidence":"high|medium|low", "note":"値の出どころを1文で"}',
+  ].join('\n');
+
   class AnalyzeError extends Error {
     constructor(message, quiet) { super(message); this.quiet = !!quiet; }
   }
 
-  async function analyzeWithClaude(blob, hint, signal) {
+  async function analyzeWithClaude(prompt, blob, signal) {
     try {
-      return await engine.sample.json(PROMPT(hint), { images: [blob], signal, cache: false });
+      return await engine.sample.json(prompt, blob ? { images: [blob], signal, cache: false } : { signal, cache: false });
     } catch (e) {
       const code = e && e.code;
       if (code === 'cancelled') throw new AnalyzeError('', true);
       if (code === 'not_granted' || code === 'sampling_disabled' || code === 'images_unavailable') {
-        engine.imagesOk = false;
+        if (code === 'images_unavailable') engine.imagesOk = false; else engine.sample = null;
         renderEngine();
-        throw new AnalyzeError('この画面では Claude に写真を送れません。手入力するか、設定で API キーを入れてください');
+        throw new AnalyzeError('この画面では Claude を使えません。手入力するか、設定で API キーを入れてください');
       }
       if (code === 'rate_limited') throw new AnalyzeError('Claude の利用上限に達しました。しばらくしてから「もう一度解析」を押してください');
       if (code === 'image_rejected') throw new AnalyzeError('この画像は読み取れませんでした。別の写真で試してください');
@@ -841,8 +890,9 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
     }
   }
 
-  async function analyzeWithApiKey(blob, hint, signal) {
-    const data = await blobToBase64(blob);
+  async function analyzeWithApiKey(prompt, blob, signal) {
+    const content = [{ type: 'text', text: prompt }];
+    if (blob) content.unshift({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: await blobToBase64(blob) } });
     let res;
     try {
       res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -860,13 +910,7 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
           max_tokens: 16000,
           fallbacks: 'default',
           output_config: { effort: 'medium', format: { type: 'json_schema', schema: RESULT_SCHEMA } },
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } },
-              { type: 'text', text: PROMPT(hint) },
-            ],
-          }],
+          messages: [{ role: 'user', content }],
         }),
       });
     } catch (e) {
@@ -978,8 +1022,8 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
     try {
       const hint = el.hintInput.value.trim();
       const result = kind === 'claude'
-        ? await analyzeWithClaude(draftBlob, hint, ctl.signal)
-        : await analyzeWithApiKey(draftBlob, hint, ctl.signal);
+        ? await analyzeWithClaude(PROMPT(hint), draftBlob, ctl.signal)
+        : await analyzeWithApiKey(PROMPT(hint), draftBlob, ctl.signal);
       if (draft !== target) return;
       const dishes = Array.isArray(result && result.dishes) ? result.dishes : [];
       draft.items = dishes.map(normalizeItem).filter(Boolean);
@@ -1064,6 +1108,95 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
     toast('削除しました');
   }
 
+  /* ---------- 商品名で記録 ---------- */
+  const productKey = (name) => name.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+  // 前に同じ商品を記録していれば、その値をそのまま使う（解析を待たずに済む）
+  function findProduct(name) {
+    const key = productKey(name);
+    return meals.filter((m) => m.product && productKey(m.product) === key)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] || null;
+  }
+  function renderProductList() {
+    const seen = new Set();
+    const names = [];
+    meals.filter((m) => m.product).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).forEach((m) => {
+      const key = productKey(m.product);
+      if (seen.has(key) || names.length >= 30) return;
+      seen.add(key);
+      names.push(m.product);
+    });
+    el.productList.replaceChildren(...names.map((n) => Object.assign(document.createElement('option'), { value: n })));
+  }
+  function addMeal(meal) {
+    meals.push(meal);
+    persist();
+    pushMeal(meal);
+    renderDay();
+    renderWeek();
+  }
+
+  async function recordProduct(name) {
+    name = name.replace(/\s+/g, ' ').trim();
+    if (!name) { el.productInput.focus(); return; }
+    const now = new Date();
+    const base = { id: uid(), date: currentDay, time: hm(now), type: guessType(now), photo: '', product: name,
+      createdAt: now.toISOString(), updatedAt: now.toISOString() };
+
+    const known = findProduct(name);
+    if (known) {
+      const meal = normalizeMeal(Object.assign(base, { items: known.items }));
+      addMeal(meal);
+      el.productInput.value = '';
+      toast(`「${name}」を記録しました（${fmt(totals(meal.items).kcal)} kcal・前回と同じ値）`);
+      return;
+    }
+
+    const kind = engineKind(false);
+    if (kind === 'none') {
+      // 調べられないときは名前だけ入れて手入力にする
+      draftBlob = null;
+      openEditor(Object.assign(base, { items: [{ name, amount: '1個', kcal: 0, p: 0, f: 0, c: 0 }] }), true);
+      toast('商品を調べるには設定で API キーが必要です。カロリーを手で入れてください');
+      el.productInput.value = '';
+      return;
+    }
+
+    el.productBtn.disabled = true;
+    el.productInput.disabled = true;
+    el.productBtn.textContent = '調べ中…';
+    try {
+      const prompt = PRODUCT_PROMPT(name);
+      const result = kind === 'claude' ? await analyzeWithClaude(prompt, null) : await analyzeWithApiKey(prompt, null);
+      const items = (Array.isArray(result && result.dishes) ? result.dishes : []).map(normalizeItem).filter((it) => it.name);
+      const note = result && typeof result.note === 'string' ? result.note : '';
+      el.productInput.value = '';
+      if (!items.length) {
+        draftBlob = null;
+        openEditor(Object.assign(base, { items: [{ name, amount: '1個', kcal: 0, p: 0, f: 0, c: 0 }] }), true);
+        toast(note || 'この商品は見つかりませんでした。カロリーを手で入れてください');
+        return;
+      }
+      const meal = normalizeMeal(Object.assign(base, { items }));
+      if (result.confidence === 'low') {
+        // 自信がないときは記録前に確かめてもらう
+        draftBlob = null;
+        openEditor(meal, true);
+        el.aiNote.textContent = `確度：低（値を確かめてください）　${note}`;
+        el.aiNote.hidden = false;
+        return;
+      }
+      addMeal(meal);
+      const tag = result.confidence === 'high' ? '' : '・推定';
+      toast(`「${items[0].name}」を記録しました（${fmt(totals(items).kcal)} kcal${tag}）`);
+    } catch (e) {
+      if (!(e instanceof AnalyzeError && e.quiet)) toast(e.message || '商品を調べられませんでした');
+    } finally {
+      el.productBtn.disabled = false;
+      el.productInput.disabled = false;
+      el.productBtn.textContent = '記録';
+    }
+  }
+
   /* ---------- 1日の表示 ---------- */
   const goalOf = (key) => (settings.goal * PFC_RATIO[key][0]) / PFC_RATIO[key][1];
 
@@ -1073,6 +1206,7 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
     el.dayInput.value = currentDay;
     el.todayBtn.hidden = isToday;
     el.nextDay.disabled = currentDay >= today();
+    renderProductList();
 
     const list = mealsOn(currentDay);
     const t = totals(list.flatMap((m) => m.items));
@@ -1125,7 +1259,7 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
     b.className = 'meal';
     const thumb = m.photo ? document.createElement('img') : document.createElement('div');
     thumb.className = 'meal__thumb';
-    if (m.photo) { thumb.src = m.photo; thumb.alt = ''; } else thumb.textContent = '手入力';
+    if (m.photo) { thumb.src = m.photo; thumb.alt = ''; } else thumb.textContent = m.product ? '商品' : '手入力';
     const body = document.createElement('div');
     body.className = 'meal__body';
     const names = document.createElement('div');
@@ -1238,21 +1372,86 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
   }
 
   /* ---------- 書き出し・読み込み ---------- */
-  async function exportData() {
-    const text = JSON.stringify({ app: 'calorie-note', version: 1, settings: { goal: settings.goal, profile: settings.profile }, meals }, null, 2);
-    const filename = `calorie-note-${today()}.json`;
+  async function saveFile(filename, data, type) {
     const saver = window.claude && typeof window.claude.use === 'function'
       ? await window.claude.use('downloads').catch(() => null)
       : null;
     if (saver) {
-      try { await saver.save({ filename, data: text }); toast('書き出しました'); } catch (e) { toast('書き出しをやめました'); }
+      try { await saver.save({ filename, data }); toast('書き出しました'); } catch (e) { toast('書き出しをやめました'); }
       return;
     }
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    a.href = URL.createObjectURL(new Blob([data], { type }));
     a.download = filename;
+    document.body.append(a);
     a.click();
+    a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  let xlsxLoading = null;
+  function loadXlsx() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (!xlsxLoading) {
+      xlsxLoading = new Promise((ok, ng) => {
+        const s = document.createElement('script');
+        s.src = XLSX_URL;
+        s.onload = () => (window.XLSX ? ok(window.XLSX) : ng(new Error('xlsx')));
+        s.onerror = () => { xlsxLoading = null; s.remove(); ng(new Error('xlsx')); };
+        document.head.append(s);
+      });
+    }
+    return xlsxLoading;
+  }
+
+  async function exportExcel() {
+    const range = el.exportRange.value;
+    const first = meals.reduce((d, m) => (m.date < d ? m.date : d), today());
+    const from = range === 'all' ? first : addDays(today(), 1 - Number(range));
+    const days = [];
+    for (let d = from; d <= today(); d = addDays(d, 1)) days.push(d);
+    const slash = (d) => d.replace(/-/g, '/');
+
+    el.excelBtn.disabled = true;
+    let XLSX;
+    try { XLSX = await loadXlsx(); } catch (e) {
+      el.excelBtn.disabled = false;
+      toast('Excel 書き出しの部品を読み込めませんでした。通信できる状態で試してください');
+      return;
+    }
+    try {
+      const daily = [['日付', '曜日', '摂取kcal', '目標kcal', '目標との差', 'たんぱく質(g)', '脂質(g)', '炭水化物(g)', '食事の回数']];
+      days.forEach((d) => {
+        const list = mealsOn(d);
+        const t = totals(list.flatMap((m) => m.items));
+        daily.push(list.length
+          ? [slash(d), WEEKDAYS[parseYmd(d).getDay()], round(t.kcal), settings.goal, round(t.kcal - settings.goal), round1(t.p), round1(t.f), round1(t.c), list.length]
+          : [slash(d), WEEKDAYS[parseYmd(d).getDay()], null, settings.goal, null, null, null, null, 0]);
+      });
+      const detail = [['日付', '時刻', '区分', '品目', '量', 'kcal', 'たんぱく質(g)', '脂質(g)', '炭水化物(g)', '記録方法']];
+      days.forEach((d) => mealsOn(d).forEach((m) => {
+        const how = m.product ? '商品名' : m.photo ? '写真' : '手入力';
+        m.items.forEach((it) => detail.push([slash(d), m.time, TYPES[m.type], it.name, it.amount, it.kcal, it.p, it.f, it.c, how]));
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const s1 = XLSX.utils.aoa_to_sheet(daily);
+      s1['!cols'] = [12, 5, 10, 10, 11, 13, 10, 12, 10].map((w) => ({ wch: w }));
+      const s2 = XLSX.utils.aoa_to_sheet(detail);
+      s2['!cols'] = [12, 7, 7, 28, 16, 8, 13, 10, 12, 10].map((w) => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, s1, '日別');
+      XLSX.utils.book_append_sheet(wb, s2, '食事の明細');
+      const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      await saveFile(`カロリー手帳_${from}_${today()}.xlsx`, buf,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    } finally {
+      el.excelBtn.disabled = false;
+    }
+  }
+
+  async function exportData() {
+    const text = JSON.stringify({ app: 'calorie-note', version: 1, settings: { goal: settings.goal, profile: settings.profile }, meals }, null, 2);
+    await saveFile(`calorie-note-${today()}.json`, text, 'application/json');
   }
   async function importData(file) {
     try {
@@ -1307,6 +1506,8 @@ main { padding-block: 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
     onPhoto(file);
   }));
   el.manualBtn.addEventListener('click', startManual);
+  el.productForm.addEventListener('submit', (e) => { e.preventDefault(); recordProduct(el.productInput.value); });
+  el.excelBtn.addEventListener('click', exportExcel);
   el.mealType.addEventListener('click', (e) => {
     const b = e.target.closest('button[data-type]');
     if (!b || !draft) return;
